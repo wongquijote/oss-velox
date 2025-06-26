@@ -26,6 +26,13 @@
 #include "velox/dwio/dwrf/writer/Writer.h"
 #include "velox/exec/tests/utils/AssertQueryBuilder.h"
 
+#ifdef VELOX_ENABLE_PARQUET
+  #include "velox/dwio/parquet/RegisterParquetReader.h"
+  #include "velox/dwio/parquet/RegisterParquetWriter.h"
+#endif 
+
+#include "velox/dwio/common/FlushPolicyFactory.h"
+
 namespace facebook::velox::exec::test {
 
 HiveConnectorTestBase::HiveConnectorTestBase() {
@@ -49,6 +56,12 @@ void HiveConnectorTestBase::SetUp() {
   dwio::common::registerFileSinks();
   dwrf::registerDwrfReaderFactory();
   dwrf::registerDwrfWriterFactory();
+  dwio::common::registerDefaultFactory(dwio::common::FileFormat::DWRF);
+  #ifdef VELOX_ENABLE_PARQUET
+    parquet::registerParquetReaderFactory();
+    parquet::registerParquetWriterFactory();
+    dwio::common::registerDefaultFactory(dwio::common::FileFormat::PARQUET);
+  #endif
 }
 
 void HiveConnectorTestBase::TearDown() {
@@ -57,6 +70,12 @@ void HiveConnectorTestBase::TearDown() {
   ioExecutor_.reset();
   dwrf::unregisterDwrfReaderFactory();
   dwrf::unregisterDwrfWriterFactory();
+  dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::DWRF);
+  #ifdef VELOX_ENABLE_PARQUET
+    parquet::unregisterParquetReaderFactory();
+    parquet::unregisterParquetWriterFactory();
+    dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::PARQUET);
+  #endif
   connector::unregisterConnector(kHiveConnectorId);
   connector::unregisterConnectorFactory(
       connector::hive::HiveConnectorFactory::kHiveConnectorName);

@@ -23,18 +23,20 @@
 #include "velox/common/base/Fs.h"
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/common/testutil/TestValue.h"
-#include "velox/dwio/common/BufferedInput.h"
-#include "velox/dwio/common/Options.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/FlushPolicy.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
+// #include "velox/dwio/common/BufferedInput.h"
+// #include "velox/dwio/common/Options.h"
+// #include "velox/dwio/dwrf/reader/DwrfReader.h"
+// #include "velox/dwio/dwrf/writer/FlushPolicy.h"
+// #include "velox/dwio/dwrf/writer/Writer.h"
 
-#ifdef VELOX_ENABLE_PARQUET
-#include "velox/dwio/parquet/RegisterParquetReader.h"
-#include "velox/dwio/parquet/RegisterParquetWriter.h"
-#include "velox/dwio/parquet/reader/ParquetReader.h"
-#include "velox/dwio/parquet/writer/Writer.h"
-#endif
+// #ifdef VELOX_ENABLE_PARQUET
+// #include "velox/dwio/parquet/RegisterParquetReader.h"
+// #include "velox/dwio/parquet/RegisterParquetWriter.h"
+// #include "velox/dwio/parquet/reader/ParquetReader.h"
+// #include "velox/dwio/parquet/writer/Writer.h"
+// #endif
+
+#include "velox/dwio/common/FlushPolicyFactory.h"
 
 #include "velox/exec/tests/utils/PlanBuilder.h"
 #include "velox/exec/tests/utils/TempDirectoryPath.h"
@@ -52,8 +54,9 @@ class HiveDataSinkTest : public exec::test::HiveConnectorTestBase {
   void SetUp() override {
     HiveConnectorTestBase::SetUp();
 #ifdef VELOX_ENABLE_PARQUET
-    parquet::registerParquetReaderFactory();
-    parquet::registerParquetWriterFactory();
+    // parquet::registerParquetReaderFactory();
+    // parquet::registerParquetWriterFactory();
+    dwio::common::registerDefaultFactory(dwio::common::FileFormat::PARQUET);
 #endif
     Type::registerSerDe();
     HiveSortingColumn::registerSerDe();
@@ -1145,9 +1148,10 @@ TEST_F(HiveDataSinkTest, insertTableHandleToString) {
 #ifdef VELOX_ENABLE_PARQUET
 TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
   const auto outputDirectory = TempDirectoryPath::create();
-  auto flushPolicyFactory = []() {
-    return std::make_unique<parquet::DefaultFlushPolicy>(1234, 0);
-  };
+  // auto flushPolicyFactory = []() {
+    // return std::make_unique<parquet::DefaultFlushPolicy>(1234, 0);
+  // };
+  auto flushPolicyFactory = dwio::common::flushPolicyFactories().getDefaultFactory(dwio::common::FileFormat::PARQUET);
   auto writeOptions = std::make_shared<parquet::WriterOptions>();
   writeOptions->flushPolicyFactory = flushPolicyFactory;
   auto dataSink = createDataSink(
@@ -1182,9 +1186,10 @@ TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
 
 TEST_F(HiveDataSinkTest, flushPolicyWithDWRF) {
   const auto outputDirectory = TempDirectoryPath::create();
-  auto flushPolicyFactory = []() {
-    return std::make_unique<dwrf::DefaultFlushPolicy>(1234, 0);
-  };
+  // auto flushPolicyFactory = []() {
+    // return std::make_unique<dwrf::DefaultFlushPolicy>(1234, 0);
+  // };
+  auto flushPolicyFactory = dwio::common::flushPolicyFactories().getDefaultFactory(dwio::common::FileFormat::DWRF);
 
   auto writeOptions = std::make_shared<dwrf::WriterOptions>();
   writeOptions->flushPolicyFactory = flushPolicyFactory;
