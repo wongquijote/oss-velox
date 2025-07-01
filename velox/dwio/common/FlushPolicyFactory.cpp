@@ -36,20 +36,21 @@ namespace {
 // }
 
 using FlushPolicyFactoriesMap = 
-    std::unordered_map<FileFormat, std::shared_ptr<FlushPolicyFactory>;
+    std::unordered_map<FileFormat, FlushPolicyFactory>;
 
 FlushPolicyFactoriesMap& flushPolicyFactories() {
   static FlushPolicyFactoriesMap factories;
   return factories;
 }
+
 } // namespace
 
-const uint64_t DefaultStripeSizeThreshold = 1234;
-const uint64_t DefaultDictionarySizeThresold = 0;
+const uint64_t DefaultStripeSizeThreshold { 1234 };
+const uint64_t DefaultDictionarySizeThresold { 0 };
 const std::unordered_map<FileFormat, std::function<dwio::common::FlushPolicy()>> DefaultPolicies = {
-  {FileFormat::DWRF, [DefaultStripeSizeThreshold, DefaultDictionarySizeThresold]() { return dwrf::DefaultFlushPolicy>(DefaultStripeSizeThreshold, DefaultDictionarySizeThresold); }},
+  {FileFormat::DWRF, [DefaultStripeSizeThreshold, DefaultDictionarySizeThresold]() { return std::make_unique<dwrf::DefaultFlushPolicy>(DefaultStripeSizeThreshold, DefaultDictionarySizeThresold); }},
 #ifdef VELOX_ENABLE_PARQUET
-  {FileFormat::PARQUET, [DefaultStripeSizeThreshold, DefaultDictionarySizeThresold]() { return parquet::DefaultFlushPolicy>(DefaultStripeSizeThreshold, DefaultDictionarySizeThresold); }}
+  {FileFormat::PARQUET, [DefaultStripeSizeThreshold, DefaultDictionarySizeThresold]() { return std::make_unique<parquet::DefaultFlushPolicy>(DefaultStripeSizeThreshold, DefaultDictionarySizeThresold); }}
 #endif
 };
 const std::unordered_map<FileFormat, std::function<bool()>> LambdaPolicies = {
@@ -72,7 +73,7 @@ bool registerDefaultFactory(FileFormat format) {
   };
   flushPolicyFactory[format].defaultFlushPolicyMap().insert({format, factory});
   [[maybe_unused]] const bool ok =
-      flushFactories().insert({factory->fileFormat(), flushPolicyFactory}).second;
+      flushPolicyFactories().insert({factory->fileFormat(), flushPolicyFactory}).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
 #if 0
   VELOX_CHECK(
@@ -102,7 +103,7 @@ bool registerLambdaFactory(FileFormat format, std::unique_ptr<std::function<bool
   };
   flushPolicyFactory[format].lambdaFlushPolicyMap().insert({format, factory});
   [[maybe_unused]] const bool ok =
-      flushFactories().insert({factory->fileFormat(), flushPolicyFactory}).second;
+      flushPolicyFactories().insert({factory->fileFormat(), flushPolicyFactory}).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
 #if 0
   VELOX_CHECK(
@@ -114,28 +115,28 @@ bool registerLambdaFactory(FileFormat format, std::unique_ptr<std::function<bool
 }
 
 bool unregisterDefaultFactory(FileFormat format) {
-  auto count = flushFactories().defaultFlushPolicyMap().erase(format);
+  auto count = flushPolicyFactories().defaultFlushPolicyMap().erase(format);
   return count == 1;
 }
 
 bool unregisterLambdaFactory(FileFormat format) {
-  auto count = flushFactories().lamdaFlushPolicyMap().erase(format);
+  auto count = flushPolicyFactories().lamdaFlushPolicyMap().erase(format);
   return count == 1;
 }
 
-std::optional<std::shared_ptr<DefaultFlushPolicyFactory>> getDefaultFactory(FileFormat format) {
-  auto it = flushFactories().defaultFlushPolicyMap().find(format);
+FlushPolicyFactory::DefaultFlushPolicyFactory getDefaultFactory(FileFormat format) {
+  auto it = flushPolicyFactories().defaultFlushPolicyMap().find(format);
   VELOX_CHECK(
-      it != flushFactories().defaultFlushPolicyMap().end(),
+      it != flushPolicyFactories().defaultFlushPolicyMap().end(),
       "FlushFactory is not registered for format {}",
       toString(format));
   return it->second.defaultFactory;
 }
 
-std::optional<std::shared_ptr<LambdaFlushPolicyFactory>> getLambdaFactory(FileFormat format) {
-  auto it = flushFactories().lambdaFlushPolicyMap().find(format);
+FlushPolicyFactory::LambdaFlushPolicyFactory getLambdaFactory(FileFormat format) {
+  auto it = flushPolicyFactories().lambdaFlushPolicyMap().find(format);
   VELOX_CHECK(
-      it != flushFactories().lambdaFlushPolicyMap().end(),
+      it != flushPolicyFactories().lambdaFlushPolicyMap().end(),
       "FlushFactory is not registered for format {}",
       toString(format));
   return it->second.lambdaFactory;

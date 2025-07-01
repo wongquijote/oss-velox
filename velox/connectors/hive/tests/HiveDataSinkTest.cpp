@@ -25,16 +25,16 @@
 #include "velox/common/testutil/TestValue.h"
 // #include "velox/dwio/common/BufferedInput.h"
 // #include "velox/dwio/common/Options.h"
-// #include "velox/dwio/dwrf/reader/DwrfReader.h"
+#include "velox/dwio/dwrf/reader/DwrfReader.h"
 // #include "velox/dwio/dwrf/writer/FlushPolicy.h"
 // #include "velox/dwio/dwrf/writer/Writer.h"
 
-// #ifdef VELOX_ENABLE_PARQUET
+#ifdef VELOX_ENABLE_PARQUET
 // #include "velox/dwio/parquet/RegisterParquetReader.h"
 // #include "velox/dwio/parquet/RegisterParquetWriter.h"
-// #include "velox/dwio/parquet/reader/ParquetReader.h"
+#include "velox/dwio/parquet/reader/ParquetReader.h"
 // #include "velox/dwio/parquet/writer/Writer.h"
-// #endif
+#endif
 
 #include "velox/dwio/common/FlushPolicyFactory.h"
 
@@ -1151,7 +1151,7 @@ TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
   // auto flushPolicyFactory = []() {
     // return std::make_unique<parquet::DefaultFlushPolicy>(1234, 0);
   // };
-  auto flushPolicyFactory = dwio::common::flushPolicyFactories().getDefaultFactory(dwio::common::FileFormat::PARQUET);
+  auto flushPolicyFactory = dwio::common::getDefaultFactory(dwio::common::FileFormat::PARQUET);
   auto writeOptions = std::make_shared<parquet::WriterOptions>();
   writeOptions->flushPolicyFactory = flushPolicyFactory;
   auto dataSink = createDataSink(
@@ -1189,7 +1189,8 @@ TEST_F(HiveDataSinkTest, flushPolicyWithDWRF) {
   // auto flushPolicyFactory = []() {
     // return std::make_unique<dwrf::DefaultFlushPolicy>(1234, 0);
   // };
-  auto flushPolicyFactory = dwio::common::flushPolicyFactories().getDefaultFactory(dwio::common::FileFormat::DWRF);
+  auto flushPolicyFactory = dwio::common::getDefaultFactory(dwio::common::FileFormat::DWRF);
+  // Assuming that the key exists because policy has already been registered.
 
   auto writeOptions = std::make_shared<dwrf::WriterOptions>();
   writeOptions->flushPolicyFactory = flushPolicyFactory;

@@ -83,10 +83,7 @@ class FlushPolicyFactory {
       std::function<bool()> lambda_;
   };
 
-  /**
-   * Factory function type for creating DefaultFlushPolicy objects.
-   */
-  using DefaultFlushPolicyFactory =
+   using DefaultFlushPolicyFactory =
     std::function<std::unique_ptr<DefaultFlushPolicy>(uint64_t, uint64_t)>;
 
   /**
@@ -95,6 +92,24 @@ class FlushPolicyFactory {
    */
   using LambdaFlushPolicyFactory =
     std::function<std::unique_ptr<LambdaFlushPolicy>(std::function<bool()>)>;
+
+  struct FlushPolicyFactories {
+    DefaultFlushPolicyFactory = function<std::unique_ptr<facebook::velox::dwio::common::FlushPolicy>();
+    LambdaFlushPolicyFactory = function<std::unique_ptr<facebook::velox::dwio::common::FlushPolicy>();
+  }
+
+  /**
+   * Factory function type for creating DefaultFlushPolicy objects.
+   */
+  // using DefaultFlushPolicyFactory =
+  //   std::function<std::unique_ptr<DefaultFlushPolicy>(uint64_t, uint64_t)>;
+
+  /**
+   * Factory function type for creating LambdaFlushPolicy objects.
+   * This is a generic lambda policy that doesn't take in any arguments.
+   */
+  // using LambdaFlushPolicyFactory =
+  //   std::function<std::unique_ptr<LambdaFlushPolicy>(std::function<bool()>)>;
 
   // struct FlushPolicyFactories {
   //   FileFormat format;
@@ -121,25 +136,41 @@ class FlushPolicyFactory {
   /**
    * Get the default flush policy map for the file format.
    */
-  std::unordered_map<FileFormat, DefaultFlushPolicyFactory> defaultFlushPolicyMap() {
-    return defaultFactoryMap_;
-  }
+  // std::unordered_map<FileFormat, DefaultFlushPolicyFactory> defaultFlushPolicyMap() {
+  //   return defaultFactoryMap_;
+  // }
 
   /**
    * Get the lambda flush policy map for the file format.
    */
-  std::unordered_map<FileFormat, LambdaFlushPolicyFactory> lambdaFlushPolicyMap() {
-    return lambdaFactoryMap_;
+  // std::unordered_map<FileFormat, LambdaFlushPolicyFactory> lambdaFlushPolicyMap() {
+  //   return lambdaFactoryMap_;
+  // }
+
+  /**
+   * Get the flush policy factories.
+   */
+  FlushPolicyFactories flushPolicyFactories() {
+    return flushPolicyFactories_;
   }
 
+  using FlushPolicyFactoriesMap = 
+    std::unordered_map<FileFormat, std::shared_ptr<FlushPolicyFactories>>;
 
+  /** 
+   * 
+   */
+  FlushPolicyFactoriesMap& flushPolicyFactories();
+
+  
  private:
   const FileFormat format_;
   /**
    * Empty maps that store the flush policies by their file format
    */
-  std::unordered_map<FileFormat, DefaultFlushPolicyFactory> defaultFactoryMap_;
-  std::unordered_map<FileFormat, LambdaFlushPolicyFactory> lambdaFactoryMap_;
+  // std::unordered_map<FileFormat, DefaultFlushPolicyFactory> defaultFactoryMap_;
+  // std::unordered_map<FileFormat, LambdaFlushPolicyFactory> lambdaFactoryMap_;
+  function<std::unique_ptr<facebook::velox::dwio::common::FlushPolicy> flushPolicyFactories_;
 };
 
 /**
@@ -177,13 +208,13 @@ bool unregisterLambdaFactory(FileFormat format);
  * a failure if there is no registered factory for this format.
  * @return FlushPolicyFactory object
  */
-std::shared_ptr<FlushPolicyFactory> getDefaultFactory(FileFormat format);
+FlushPolicyFactory::DefaultFlushPolicyFactory getDefaultFactory(FileFormat format);
 
 /**
  * Get Flush factory object for a specified file format. Results in
  * a failure if there is no registered factory for this format.
  * @return FlushPolicyFactory object
  */
-std::shared_ptr<FlushPolicyFactory> getLambdaFactory(FileFormat format);
+FlushPolicyFactory::LambdaFlushPolicyFactory getLambdaFactory(FileFormat format);
 
 } // namespace facebook::velox::dwio::common
