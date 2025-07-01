@@ -56,11 +56,10 @@ void HiveConnectorTestBase::SetUp() {
   dwio::common::registerFileSinks();
   dwrf::registerDwrfReaderFactory();
   dwrf::registerDwrfWriterFactory();
-  dwio::common::registerDefaultFactory(dwio::common::FileFormat::DWRF);
+  dwio::common::registerDefaultFactory(dwio::common::FileFormat::DWRF, 1234, 0);
   #ifdef VELOX_ENABLE_PARQUET
     parquet::registerParquetReaderFactory();
     parquet::registerParquetWriterFactory();
-    dwio::common::registerDefaultFactory(dwio::common::FileFormat::PARQUET);
   #endif
 }
 

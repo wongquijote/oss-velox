@@ -20,23 +20,8 @@ namespace facebook::velox::dwio::common {
 
 namespace {
 
-// // Returns a factory that creates DefaultFlushPolicy objects
-// template <typename T>
-// DefaultFlushPolicyFactory makeDefaultFlushPolicyFactory(
-//     T format,
-//     uint64_t stripeSizeThreshold,
-//     uint64_t dictionarySizeThresold) {
-//     return [stripeSizeThreshold, dictionarySizeThresold]() {std::make_unique<T>(stripeSizeThreshold, dictionarySizeThresold)};
-// }
-
-// // Returns a factory that creates LambdaFlushPolicy objects with the lambda function.
-// LambdaFlushPolicyFactory makeLambdaFlushPolicyFactory(
-//     std::function<bool()> lambda) {
-//     return [lambda]() {std::make_unique<LambdaFlushPolicy>(lambda)};   
-// }
-
 using FlushPolicyFactoriesMap = 
-    std::unordered_map<FileFormat, FlushPolicyFactory>;
+    std::unordered_map<FileFormat, std::unique_ptr<FlushPolicy>>;
 
 FlushPolicyFactoriesMap& flushPolicyFactories() {
   static FlushPolicyFactoriesMap factories;
@@ -45,35 +30,12 @@ FlushPolicyFactoriesMap& flushPolicyFactories() {
 
 } // namespace
 
-const uint64_t DefaultStripeSizeThreshold { 1234 };
-const uint64_t DefaultDictionarySizeThresold { 0 };
-const std::unordered_map<FileFormat, std::function<dwio::common::FlushPolicy()>> DefaultPolicies = {
-  {FileFormat::DWRF, [DefaultStripeSizeThreshold, DefaultDictionarySizeThresold]() { return std::make_unique<dwrf::DefaultFlushPolicy>(DefaultStripeSizeThreshold, DefaultDictionarySizeThresold); }},
-#ifdef VELOX_ENABLE_PARQUET
-  {FileFormat::PARQUET, [DefaultStripeSizeThreshold, DefaultDictionarySizeThresold]() { return std::make_unique<parquet::DefaultFlushPolicy>(DefaultStripeSizeThreshold, DefaultDictionarySizeThresold); }}
-#endif
-};
-const std::unordered_map<FileFormat, std::function<bool()>> LambdaPolicies = {
-  {FileFormat::DWRF, []() { return true; } },
-#ifdef VELOX_ENBALE_PARQUET
-  {FileFormat::PARQUET, []() { return true; } }
-#endif
-};
-
-bool registerDefaultFactory(FileFormat format) {
-  if (format == FileFormat::DWRF || format == FileFormat::PARQUET) {
-    // auto fmt = dwrf::DefaultFlushPolicy>(rowsInRowGroup, bytesInRowGroup);
-    auto factory = DefaultPolicies[format];
-  } else {
-    return false;
-  }
-  // auto factory = makeDefaultFlushPolicyFactory(fmt);
-  FlushPolicyFactory flushPolicyFactory = {
-    .format = format,
-  };
-  flushPolicyFactory[format].defaultFlushPolicyMap().insert({format, factory});
+template <typename T>
+bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold = 1234,
+    uint64_t dictionarySizeThresold = 0) {
+  auto factory = std::make_unique<T>(stripeSizeThreshold, dictionarySizeThresold);
   [[maybe_unused]] const bool ok =
-      flushPolicyFactories().insert({factory->fileFormat(), flushPolicyFactory}).second;
+      flushPolicyFactories().insert({std::make_pair(format, FlushPolicyType::Default), factory}).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
 #if 0
   VELOX_CHECK(
@@ -84,26 +46,17 @@ bool registerDefaultFactory(FileFormat format) {
   return true;
 }
 
-/// Create some default lambda policies
-bool registerLambdaFactory(FileFormat format, std::unique_ptr<std::function<bool()>> lambda = 
+template <typename T>
+bool registerLambdaFactory(FileFormat format, std::function<bool()> lambda = 
     []() {
-      return std::make_unique<LambdaFlushPolicy>([]() {
+      return std::make_unique<T>([]() {
         return true; // Flushes every batch.
       })
     }
 ) {
-  if (format == FileFormat::DWRF || format == FileFormat::Parquet) {
-    auto factory = LambdaPolicies[format];
-  } else {
-    return false;
-  }
-  // auto factory = makeLambdaFlushPolicyFactory(lambda)
-  FlushPolicyFactory flushPolicyFactory = {
-    .format = format,
-  };
-  flushPolicyFactory[format].lambdaFlushPolicyMap().insert({format, factory});
+ auto factory = std::make_unique<T>(lambda);
   [[maybe_unused]] const bool ok =
-      flushPolicyFactories().insert({factory->fileFormat(), flushPolicyFactory}).second;
+      flushPolicyFactories().insert({std::make_pair(format, FlushPolicyType::Lambda), factory}).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
 #if 0
   VELOX_CHECK(
@@ -115,99 +68,37 @@ bool registerLambdaFactory(FileFormat format, std::unique_ptr<std::function<bool
 }
 
 bool unregisterDefaultFactory(FileFormat format) {
-  auto count = flushPolicyFactories().defaultFlushPolicyMap().erase(format);
+  auto count = flushPolicyFactories().erase(std::pair(format, FlushPolicyType::Default));
   return count == 1;
 }
 
 bool unregisterLambdaFactory(FileFormat format) {
-  auto count = flushPolicyFactories().lamdaFlushPolicyMap().erase(format);
+  auto count = flushPolicyFactories().erase(std::pair(format, FlushPolicyType::Lambda));
   return count == 1;
 }
 
 FlushPolicyFactory::DefaultFlushPolicyFactory getDefaultFactory(FileFormat format) {
-  auto it = flushPolicyFactories().defaultFlushPolicyMap().find(format);
+  auto it = flushPolicyFactories().find(std::pair(format, FlushPolicyType::Default));
   VELOX_CHECK(
-      it != flushPolicyFactories().defaultFlushPolicyMap().end(),
-      "FlushFactory is not registered for format {}",
+      it != flushPolicyFactories().end(),
+      "DefaultFlushPolicyFactory is not registered for format {}",
       toString(format));
-  return it->second.defaultFactory;
+  auto flushPolicyFactory = []() {
+    return it->second;
+  };
+  return flushPolicyFactory;
 }
 
 FlushPolicyFactory::LambdaFlushPolicyFactory getLambdaFactory(FileFormat format) {
-  auto it = flushPolicyFactories().lambdaFlushPolicyMap().find(format);
+  auto it = flushPolicyFactories().find(std::pair(format, FlushPolicyType::Lambda));
   VELOX_CHECK(
-      it != flushPolicyFactories().lambdaFlushPolicyMap().end(),
-      "FlushFactory is not registered for format {}",
+      it != flushPolicyFactories().end(),
+      "LambdaFlushPolicyFactory is not registered for format {}",
       toString(format));
-  return it->second.lambdaFactory;
+  auto flushPolicyFactory = []() {
+    return it->second;
+  };
+  return flushPolicyFactory;
 }
 
-} // namespace facebook::velox::dwio::common
-
-// // Base class for flush policies.
-// class FlushPolicy {
-// public:
-//     virtual ~FlushPolicy() = default;
-//     virtual bool shouldFlush() = 0;
-// };
-
-// // Default flush policy: flushes based on row and byte limits.
-// class DefaultFlushPolicy : public FlushPolicy {
-// public:
-//     DefaultFlushPolicy(uint64_t stripeSizeThreshold, int64_t dictionarySizeThresold);
-//     ~DefaultFlushPolicy() = default;
-//     bool shouldFlush() override;
-// private:
-//     uint64_t stripeSizeThreshold_;
-//     int64_t dictionarySizeThresold_;
-// };
-
-// // Lambda-based flush policy: uses a user-supplied lambda for flush logic.
-// class LambdaFlushPolicy : public FlushPolicy {
-// public:
-//     LambdaFlushPolicy(
-//         std::function<bool()> lambda);
-//     ~LambdaFlushPolicy = default;
-//     bool shouldFlush() override;
-// private:
-//     std::function<bool()> lambda_;
-// };
-
-// /// Factory function type for creating DefaultFlushPolicy objects.
-// using DefaultFlushPolicyFactory =
-//     std::function<std::unique_ptr<DefaultFlushPolicy>(uint64_t, uint64_t)>;
-
-// /// Factory function type for creating LambdaFlushPolicy objects.
-// /// This is a generic lambda policy that doesn't take in any arguments.
-// using LambdaFlushPolicyFactory =
-//     std::function<std::unique_ptr<LambdaFlushPolicy>(std::function<bool()>)>;
-
-// struct FlushPolicyFactories {
-//     std::optional<DefaultFlushPolicyFactory> defaultFactory;
-//     std::optional<LambdaFlushPolicyFactory> lambdaFactory;
-// }
-
-/// Returns a factory that creates DefaultFlushPolicy objects with the specified parameters.
-// template <typename T>
-// DefaultFlushPolicyFactory makeDefaultFlushPolicyFactory(
-//     T format,
-//     uint64_t stripeSizeThreshold,
-//     uint64_t dictionarySizeThresold) {
-//     return [stripeSizeThreshold, dictionarySizeThresold]() {std::make_unique<T>(stripeSizeThreshold, dictionarySizeThresold)};
-// }
-
-// /// Returns a factory that creates LambdaFlushPolicy objects with the specified parameters and lambda.
-// LambdaFlushPolicyFactory makeLambdaFlushPolicyFactory(
-//     std::function<bool()> lambda) {
-//     return [lambda]() {std::make_unique<LambdaFlushPolicy>(lambda)};   
-// }
-
-// using FlushPolicyFactoriesMap = 
-//     std::unordered_map<FileFormat, std::shared_ptr<FlushPolicyFactory>;
-
-// FlushPolicyFactoriesMap& flushPolicyFactories() {
-//   static FlushPolicyFactoriesMap factories;
-//   return factories;
-// }
-
-// } // namespace
+}

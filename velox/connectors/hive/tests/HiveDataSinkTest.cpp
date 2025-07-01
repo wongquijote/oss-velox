@@ -56,7 +56,7 @@ class HiveDataSinkTest : public exec::test::HiveConnectorTestBase {
 #ifdef VELOX_ENABLE_PARQUET
     // parquet::registerParquetReaderFactory();
     // parquet::registerParquetWriterFactory();
-    dwio::common::registerDefaultFactory(dwio::common::FileFormat::PARQUET);
+    dwio::common::registerDefaultFactory(dwio::common::FileFormat::PARQUET, 1234, 0);
 #endif
     Type::registerSerDe();
     HiveSortingColumn::registerSerDe();
