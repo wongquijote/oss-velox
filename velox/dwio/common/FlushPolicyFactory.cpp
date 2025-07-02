@@ -30,10 +30,9 @@ FlushPolicyFactoriesMap& flushPolicyFactories() {
 
 } // namespace
 
-template <typename T>
 bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold = 1234,
     uint64_t dictionarySizeThresold = 0) {
-  auto factory = std::make_unique<T>(stripeSizeThreshold, dictionarySizeThresold);
+  auto factory = std::make_unique<dwio::common::FlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
   [[maybe_unused]] const bool ok =
       flushPolicyFactories().insert({std::make_pair(format, FlushPolicyType::Default), factory}).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
@@ -46,15 +45,14 @@ bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold = 12
   return true;
 }
 
-template <typename T>
 bool registerLambdaFactory(FileFormat format, std::function<bool()> lambda = 
     []() {
-      return std::make_unique<T>([]() {
+      return std::make_unique<dwio::common::FlushPolicy>([]() {
         return true; // Flushes every batch.
       })
     }
 ) {
- auto factory = std::make_unique<T>(lambda);
+ auto factory = std::make_unique<dwio::common::FlushPolicy>(lambda);
   [[maybe_unused]] const bool ok =
       flushPolicyFactories().insert({std::make_pair(format, FlushPolicyType::Lambda), factory}).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.

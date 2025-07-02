@@ -46,7 +46,6 @@ namespace facebook::velox::dwio::common {
  */
 class FlushPolicyFactory {
  public:
-  template <typename T>
   using DefaultFlushPolicyFactory =
     std::function<std::unique_ptr<dwio::common::FlushPolicy>(uint64_t, uint64_t)>;
 
@@ -62,7 +61,6 @@ class FlushPolicyFactory {
  * a single file format would cause a filure.
  * @return true
  */
-template <typename T>
 bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold,
     uint64_t dictionarySizeThresold);
 
@@ -72,7 +70,6 @@ bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold,
  * a single file format would cause a filure.
  * @return true
  */
-template <typename T>
 bool registerLambdaFactory(FileFormat format, std::function<bool()> lambda);
 
 /**

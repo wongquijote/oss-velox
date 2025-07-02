@@ -1153,7 +1153,7 @@ TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
   // };
   auto flushPolicyFactory = dwio::common::getDefaultFactory(dwio::common::FileFormat::PARQUET);
   auto writeOptions = std::make_shared<parquet::WriterOptions>();
-  writeOptions->flushPolicyFactory = flushPolicyFactory;
+  writeOptions->flushPolicyFactory = std::move(flushPolicyFactory);
   auto dataSink = createDataSink(
       rowType_,
       outputDirectory->getPath(),
@@ -1193,7 +1193,7 @@ TEST_F(HiveDataSinkTest, flushPolicyWithDWRF) {
   // Assuming that the key exists because policy has already been registered.
 
   auto writeOptions = std::make_shared<dwrf::WriterOptions>();
-  writeOptions->flushPolicyFactory = flushPolicyFactory;
+  writeOptions->flushPolicyFactory = std::move(flushPolicyFactory);
   auto dataSink = createDataSink(
       rowType_,
       outputDirectory->getPath(),
