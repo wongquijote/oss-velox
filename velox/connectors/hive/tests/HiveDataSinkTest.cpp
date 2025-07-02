@@ -23,17 +23,17 @@
 #include "velox/common/base/Fs.h"
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/common/testutil/TestValue.h"
-// #include "velox/dwio/common/BufferedInput.h"
-// #include "velox/dwio/common/Options.h"
+#include "velox/dwio/common/BufferedInput.h"
+#include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
-// #include "velox/dwio/dwrf/writer/FlushPolicy.h"
-// #include "velox/dwio/dwrf/writer/Writer.h"
+#include "velox/dwio/dwrf/writer/FlushPolicy.h"
+#include "velox/dwio/dwrf/writer/Writer.h"
 
 #ifdef VELOX_ENABLE_PARQUET
-// #include "velox/dwio/parquet/RegisterParquetReader.h"
-// #include "velox/dwio/parquet/RegisterParquetWriter.h"
+#include "velox/dwio/parquet/RegisterParquetReader.h"
+#include "velox/dwio/parquet/RegisterParquetWriter.h"
 #include "velox/dwio/parquet/reader/ParquetReader.h"
-// #include "velox/dwio/parquet/writer/Writer.h"
+#include "velox/dwio/parquet/writer/Writer.h"
 #endif
 
 #include "velox/dwio/common/FlushPolicyFactory.h"
@@ -53,6 +53,8 @@ class HiveDataSinkTest : public exec::test::HiveConnectorTestBase {
  protected:
   void SetUp() override {
     HiveConnectorTestBase::SetUp();
+    dwio::common::registerDefaultFactory(dwio::common::FileFormat::DWRF, 1234, 0);
+
 #ifdef VELOX_ENABLE_PARQUET
     // parquet::registerParquetReaderFactory();
     // parquet::registerParquetWriterFactory();
@@ -84,6 +86,12 @@ class HiveDataSinkTest : public exec::test::HiveConnectorTestBase {
     opPool_.reset();
     root_.reset();
     HiveConnectorTestBase::TearDown();
+    dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::DWRF);
+    #ifdef VELOX_ENABLE_PARQUET
+    // parquet::registerParquetReaderFactory();
+    // parquet::registerParquetWriterFactory();
+    dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::PARQUET);
+#endif
   }
 
   std::vector<RowVectorPtr> createVectors(int vectorSize, int numVectors) {

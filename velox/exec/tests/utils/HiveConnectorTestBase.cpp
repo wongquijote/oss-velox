@@ -56,11 +56,13 @@ void HiveConnectorTestBase::SetUp() {
   dwio::common::registerFileSinks();
   dwrf::registerDwrfReaderFactory();
   dwrf::registerDwrfWriterFactory();
-  dwio::common::registerDefaultFactory(dwio::common::FileFormat::DWRF, 1234, 0);
-  #ifdef VELOX_ENABLE_PARQUET
-    parquet::registerParquetReaderFactory();
-    parquet::registerParquetWriterFactory();
-  #endif
+  // dwio::common::registerDefaultFactory(dwio::common::FileFormat::DWRF, 1234, 0);
+  // #ifdef VELOX_ENABLE_PARQUET
+  //   parquet::registerParquetReaderFactory();
+  //   parquet::registerParquetWriterFactory();
+    //   dwio::common::registerDefaultFactory(dwio::common::FileFormat::PARQUET);
+
+  // #endif
 }
 
 void HiveConnectorTestBase::TearDown() {
@@ -69,12 +71,12 @@ void HiveConnectorTestBase::TearDown() {
   ioExecutor_.reset();
   dwrf::unregisterDwrfReaderFactory();
   dwrf::unregisterDwrfWriterFactory();
-  dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::DWRF);
-  #ifdef VELOX_ENABLE_PARQUET
-    parquet::unregisterParquetReaderFactory();
-    parquet::unregisterParquetWriterFactory();
-    dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::PARQUET);
-  #endif
+  // dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::DWRF);
+  // #ifdef VELOX_ENABLE_PARQUET
+  //   parquet::unregisterParquetReaderFactory();
+  //   parquet::unregisterParquetWriterFactory();
+  //   dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::PARQUET);
+  // #endif
   connector::unregisterConnector(kHiveConnectorId);
   connector::unregisterConnectorFactory(
       connector::hive::HiveConnectorFactory::kHiveConnectorName);

@@ -19,9 +19,17 @@
 namespace facebook::velox::dwio::common {
 
 namespace {
+struct PairHash {
+  template <class T1, class T2>
+  std::size_t operator()(const std::pair<T1, T2>& p) const {
+    auto h1 = std::hash<T1>{}(p.first);
+    auto h2 = std::hash<T2>{}(p.second);
+    return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+  }
+};
 
 using FlushPolicyFactoriesMap = 
-    std::unordered_map<FileFormat, std::unique_ptr<FlushPolicy>>;
+    std::unordered_map<std::pair<FileFormat, std::string>, std::unique_ptr<dwio::common::FlushPolicy>, PairHash>;
 
 FlushPolicyFactoriesMap& flushPolicyFactories() {
   static FlushPolicyFactoriesMap factories;
@@ -32,9 +40,17 @@ FlushPolicyFactoriesMap& flushPolicyFactories() {
 
 bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold = 1234,
     uint64_t dictionarySizeThresold = 0) {
-  auto factory = std::make_unique<dwio::common::FlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
+  if (format == FileFormat::DWRF) {
+    auto factory = std::make_unique<dwrf::DefaultFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
+  } else if (format == FileFormat::PARQUET) {
+      auto factory = std::make_unique<parquet::DefaultFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
+  } else {
+    // Not sure what is the expected behavior
+    return false;
+  }
+  // auto factory = std::make_unique<dwio::common::FlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
   [[maybe_unused]] const bool ok =
-      flushPolicyFactories().insert({std::make_pair(format, FlushPolicyType::Default), factory}).second;
+      flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Default"), std::move(factory))).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
 #if 0
   VELOX_CHECK(
@@ -45,16 +61,19 @@ bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold = 12
   return true;
 }
 
-bool registerLambdaFactory(FileFormat format, std::function<bool()> lambda = 
-    []() {
-      return std::make_unique<dwio::common::FlushPolicy>([]() {
-        return true; // Flushes every batch.
-      })
-    }
-) {
- auto factory = std::make_unique<dwio::common::FlushPolicy>(lambda);
+bool registerLambdaFactory(FileFormat format, std::function<bool()> lambda)
+{
+  if (format == FileFormat::DWRF) {
+    auto factory = std::make_unique<dwrf::LambdaFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
+  } else if (format == FileFormat::PARQUET) {
+      auto factory = std::make_unique<parquet::LambdaFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
+  } else {
+    // Not sure what is the expected behavior
+    return false;
+  }
+//  auto factory = std::make_unique<dwio::common::FlushPolicy>(lambda);
   [[maybe_unused]] const bool ok =
-      flushPolicyFactories().insert({std::make_pair(format, FlushPolicyType::Lambda), factory}).second;
+      flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Lambda"), std::move(factory))).second;
   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
 #if 0
   VELOX_CHECK(
@@ -66,35 +85,35 @@ bool registerLambdaFactory(FileFormat format, std::function<bool()> lambda =
 }
 
 bool unregisterDefaultFactory(FileFormat format) {
-  auto count = flushPolicyFactories().erase(std::pair(format, FlushPolicyType::Default));
+  auto count = flushPolicyFactories().erase(std::pair(format, "Default"));
   return count == 1;
 }
 
 bool unregisterLambdaFactory(FileFormat format) {
-  auto count = flushPolicyFactories().erase(std::pair(format, FlushPolicyType::Lambda));
+  auto count = flushPolicyFactories().erase(std::pair(format, "Lambda"));
   return count == 1;
 }
 
-FlushPolicyFactory::DefaultFlushPolicyFactory getDefaultFactory(FileFormat format) {
-  auto it = flushPolicyFactories().find(std::pair(format, FlushPolicyType::Default));
+FlushPolicyFactory::PolicyFactory getDefaultFactory(FileFormat format) {
+  auto it = flushPolicyFactories().find(std::pair(format, "Default"));
   VELOX_CHECK(
       it != flushPolicyFactories().end(),
       "DefaultFlushPolicyFactory is not registered for format {}",
       toString(format));
-  auto flushPolicyFactory = []() {
-    return it->second;
+  auto flushPolicyFactory = [&it]() {
+    return std::move(it->second);
   };
   return flushPolicyFactory;
 }
 
-FlushPolicyFactory::LambdaFlushPolicyFactory getLambdaFactory(FileFormat format) {
-  auto it = flushPolicyFactories().find(std::pair(format, FlushPolicyType::Lambda));
+FlushPolicyFactory::PolicyFactory getLambdaFactory(FileFormat format) {
+  auto it = flushPolicyFactories().find(std::pair(format, "Lambda"));
   VELOX_CHECK(
       it != flushPolicyFactories().end(),
       "LambdaFlushPolicyFactory is not registered for format {}",
       toString(format));
-  auto flushPolicyFactory = []() {
-    return it->second;
+  auto flushPolicyFactory = [&it]() {
+    return std::move(it->second);
   };
   return flushPolicyFactory;
 }

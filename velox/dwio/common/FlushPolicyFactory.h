@@ -18,10 +18,10 @@
 
 #include <memory>
 
-#include "velox/dwio/common/BufferedInput.h"
+// #include "velox/dwio/common/BufferedInput.h"
 #include "velox/dwio/common/Options.h"
 // #include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/dwrf/writer/FlushPolicy.h"
+#include "velox/dwio/common/FlushPolicy.h"
 #include "velox/dwio/dwrf/writer/Writer.h"
 
 #ifdef VELOX_ENABLE_PARQUET
@@ -46,11 +46,8 @@ namespace facebook::velox::dwio::common {
  */
 class FlushPolicyFactory {
  public:
-  using DefaultFlushPolicyFactory =
-    std::function<std::unique_ptr<dwio::common::FlushPolicy>(uint64_t, uint64_t)>;
-
-  using LambdaFlushPolicyFactory =
-    std::function<std::unique_ptr<dwio::common::FlushPolicy>(std::function<bool()>)>;
+  using PolicyFactory =
+    std::function<std::unique_ptr<dwio::common::FlushPolicy>()>;
 
   ~FlushPolicyFactory() = default;
 };
@@ -91,12 +88,12 @@ bool unregisterLambdaFactory(FileFormat format);
  * a failure if there is no default policy for this format.
  * @return FlushPolicyFactory object
  */
-FlushPolicyFactory::DefaultFlushPolicyFactory getDefaultFactory(FileFormat format);
+FlushPolicyFactory::PolicyFactory getDefaultFactory(FileFormat format);
 
 /**
  * Get a function that returns a Lambda Flush Policy object for a specified file format. Results in
  * a failure if there is no lambda policy for this format.
  * @return FlushPolicyFactory object
  */
-FlushPolicyFactory::LambdaFlushPolicyFactory getLambdaFactory(FileFormat format);
+FlushPolicyFactory::PolicyFactory getLambdaFactory(FileFormat format);
 } // namespace facebook::velox::dwio::common
