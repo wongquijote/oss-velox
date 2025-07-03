@@ -15,6 +15,7 @@
  */
 
 #include "velox/dwio/common/FlushPolicyFactory.h"
+using namespace facebook::velox;
 
 namespace facebook::velox::dwio::common {
 
@@ -54,19 +55,19 @@ bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold = 12
       #endif
         return true;
     }
-    case FileFormat::PARQUET: {
-      auto factory = std::make_unique<parquet::DefaultFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
-      [[maybe_unused]] const bool ok =
-          flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Default"), std::move(factory))).second;
-      // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
-      #if 0
-        VELOX_CHECK(
-            ok,
-            "FlushFactory is already registered for format {}",
-            toString(factory->fileFormat()));
-      #endif
-        return true;
-    }
+    // case FileFormat::PARQUET: {
+    //   auto factory = std::make_unique<parquet::DefaultFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
+    //   [[maybe_unused]] const bool ok =
+    //       flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Default"), std::move(factory))).second;
+    //   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
+    //   #if 0
+    //     VELOX_CHECK(
+    //         ok,
+    //         "FlushFactory is already registered for format {}",
+    //         toString(factory->fileFormat()));
+    //   #endif
+    //     return true;
+    // }
     default:
         return false;
   }

@@ -22,16 +22,17 @@
 #include "velox/dwio/common/Options.h"
 // #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/common/FlushPolicy.h"
-#include "velox/dwio/dwrf/writer/Writer.h"
+// #include "velox/dwio/dwrf/writer/Writer.h"
 
 #ifdef VELOX_ENABLE_PARQUET
 // #include "velox/dwio/parquet/RegisterParquetReader.h"
 // #include "velox/dwio/parquet/RegisterParquetWriter.h"
 // #include "velox/dwio/parquet/reader/ParquetReader.h"
-#include "velox/dwio/parquet/writer/Writer.h"
+// #include "velox/dwio/parquet/writer/Writer.h"
 #endif
 
 #include "velox/dwio/common/FlushPolicy.h"
+#include "velox/dwio/dwrf/writer/FlushPolicy.h"
 
 namespace facebook::velox::dwio::common {
 
