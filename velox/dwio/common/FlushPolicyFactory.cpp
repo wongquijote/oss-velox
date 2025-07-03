@@ -40,48 +40,70 @@ FlushPolicyFactoriesMap& flushPolicyFactories() {
 
 bool registerDefaultFactory(FileFormat format, uint64_t stripeSizeThreshold = 1234,
     uint64_t dictionarySizeThresold = 0) {
-  if (format == FileFormat::DWRF) {
-    auto factory = std::make_unique<dwrf::DefaultFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
-  } else if (format == FileFormat::PARQUET) {
+  switch (format) {
+    case FileFormat::DWRF: {
+      auto factory = std::make_unique<dwrf::DefaultFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
+      [[maybe_unused]] const bool ok =
+          flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Default"), std::move(factory))).second;
+      // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
+      #if 0
+        VELOX_CHECK(
+            ok,
+            "FlushFactory is already registered for format {}",
+            toString(factory->fileFormat()));
+      #endif
+        return true;
+    }
+    case FileFormat::PARQUET: {
       auto factory = std::make_unique<parquet::DefaultFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
-  } else {
-    // Not sure what is the expected behavior
-    return false;
+      [[maybe_unused]] const bool ok =
+          flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Default"), std::move(factory))).second;
+      // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
+      #if 0
+        VELOX_CHECK(
+            ok,
+            "FlushFactory is already registered for format {}",
+            toString(factory->fileFormat()));
+      #endif
+        return true;
+    }
+    default:
+        return false;
   }
-  // auto factory = std::make_unique<dwio::common::FlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
-  [[maybe_unused]] const bool ok =
-      flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Default"), std::move(factory))).second;
-  // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
-#if 0
-  VELOX_CHECK(
-      ok,
-      "FlushFactory is already registered for format {}",
-      toString(factory->fileFormat()));
-#endif
-  return true;
 }
 
 bool registerLambdaFactory(FileFormat format, std::function<bool()> lambda)
 {
-  if (format == FileFormat::DWRF) {
-    auto factory = std::make_unique<dwrf::LambdaFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
-  } else if (format == FileFormat::PARQUET) {
-      auto factory = std::make_unique<parquet::LambdaFlushPolicy>(stripeSizeThreshold, dictionarySizeThresold);
-  } else {
-    // Not sure what is the expected behavior
-    return false;
+  switch (format) {
+    case FileFormat::DWRF: {
+      auto factory = std::make_unique<dwrf::LambdaFlushPolicy>(lambda);
+      [[maybe_unused]] const bool ok =
+          flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Lambda"), std::move(factory))).second;
+      // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
+      #if 0
+        VELOX_CHECK(
+            ok,
+            "FlushFactory is already registered for format {}",
+            toString(factory->fileFormat()));
+      #endif
+        return true;
+    }
+    // case FileFormat::PARQUET: {
+    //   auto factory = std::make_unique<parquet::LambdaFlushPolicy>(lambda);
+    //   [[maybe_unused]] const bool ok =
+    //       flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Lambda"), std::move(factory))).second;
+    //   // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
+    //   #if 0
+    //     VELOX_CHECK(
+    //         ok,
+    //         "FlushFactory is already registered for format {}",
+    //         toString(factory->fileFormat()));
+    //   #endif
+    //     return true;
+    // }
+    default:
+      return false;
   }
-//  auto factory = std::make_unique<dwio::common::FlushPolicy>(lambda);
-  [[maybe_unused]] const bool ok =
-      flushPolicyFactories().insert(std::make_pair(std::make_pair(format, "Lambda"), std::move(factory))).second;
-  // NOTE: re-enable this check after Prestissimo has updated dwrf registration.
-#if 0
-  VELOX_CHECK(
-      ok,
-      "FlushFactory is already registered for format {}",
-      toString(factory->fileFormat()));
-#endif
-  return true;
 }
 
 bool unregisterDefaultFactory(FileFormat format) {
