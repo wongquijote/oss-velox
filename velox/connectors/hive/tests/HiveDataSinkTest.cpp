@@ -37,6 +37,8 @@
 #include "velox/dwio/parquet/writer/Writer.h"
 #endif
 
+#include "velox/dwio/common/FlushPolicyFactory.h"
+
 #include "velox/exec/tests/utils/PlanBuilder.h"
 #include "velox/exec/tests/utils/TempDirectoryPath.h"
 #include "velox/vector/fuzzer/VectorFuzzer.h"
@@ -52,9 +54,11 @@ class HiveDataSinkTest : public exec::test::HiveConnectorTestBase {
  protected:
   void SetUp() override {
     HiveConnectorTestBase::SetUp();
+    dwio::common::registerDefaultFactory(dwio::common::FileFormat::DWRF);
 #ifdef VELOX_ENABLE_PARQUET
     parquet::registerParquetReaderFactory();
     parquet::registerParquetWriterFactory();
+    dwio::common::registerDefaultFactory(dwio::common::FileFormat::PARQUET);
 #endif
     Type::registerSerDe();
     HiveSortingColumn::registerSerDe();
@@ -82,6 +86,10 @@ class HiveDataSinkTest : public exec::test::HiveConnectorTestBase {
     opPool_.reset();
     root_.reset();
     HiveConnectorTestBase::TearDown();
+    dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::DWRF);
+#ifdef VELOX_ENABLE_PARQUET
+    dwio::common::unregisterDefaultFactory(dwio::common::FileFormat::PARQUET);
+#endif
   }
 
   std::vector<RowVectorPtr> createVectors(int vectorSize, int numVectors) {
@@ -1146,8 +1154,11 @@ TEST_F(HiveDataSinkTest, insertTableHandleToString) {
 #ifdef VELOX_ENABLE_PARQUET
 TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
   const auto outputDirectory = TempDirectoryPath::create();
+  // auto flushPolicyFactory = []() {
+  //   return std::make_unique<parquet::DefaultFlushPolicy>(1234, 0);
+  // };
   auto flushPolicyFactory = []() {
-    return std::make_unique<parquet::DefaultFlushPolicy>(1234, 0);
+    return dwio::common::getDefaultFactory(dwio::common::FileFormat::PARQUET);
   };
   auto writeOptions = std::make_shared<parquet::WriterOptions>();
   writeOptions->flushPolicyFactory = flushPolicyFactory;
@@ -1183,8 +1194,11 @@ TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
 
 TEST_F(HiveDataSinkTest, flushPolicyWithDWRF) {
   const auto outputDirectory = TempDirectoryPath::create();
+  // auto flushPolicyFactory = []() {
+  //   return std::make_unique<dwrf::DefaultFlushPolicy>(1234, 0);
+  // };
   auto flushPolicyFactory = []() {
-    return std::make_unique<dwrf::DefaultFlushPolicy>(1234, 0);
+    return dwio::common::getDefaultFactory(dwio::common::FileFormat::DWRF);
   };
 
   auto writeOptions = std::make_shared<dwrf::WriterOptions>();
