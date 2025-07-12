@@ -34,13 +34,13 @@ class ScalarResultVerifier : public ResultVerifier {
   /// Returns true if 'compare' API is supported. The verifier must support
   /// either 'compare' or 'verify' API. If both are supported, 'compare' API is
   /// used and 'verify' API is ignored.
-  public bool supportsCompare() override {
+  bool supportsCompare() override {
     return true;
   };
 
   /// Return true if 'verify' API is support. The verifier must support either
   /// 'compare' or 'verify' API.
-  public bool supportsVerify() override {
+  bool supportsVerify() override {
     return false;
   };
 
@@ -51,34 +51,19 @@ class ScalarResultVerifier : public ResultVerifier {
   ///
   /// Can be used by array_distinct verifier to compute count(distinct) once and
   /// re-use its results for multiple 'verify' calls.
-  virtual void initialize(
+  void initialize(
       const std::vector<RowVectorPtr>& input,
       const std::vector<core::ExprPtr>& projections,
       const std::vector<std::string>& groupingKeys,
       const core::AggregationNode::Aggregate& aggregate,
-      const std::string& aggregateName) = 0;
-
-  /// Called once on a window operation before possibly multiple calls to the
-  /// 'compare' or 'verify' APIs. to specify the input data, window partition-by
-  /// keys, the window function, the window frame, and the name of the column
-  /// that will store the window function results.
-  virtual void initializeWindow(
-      const std::vector<RowVectorPtr>& /*input*/,
-      const std::vector<core::ExprPtr>& /* projections */,
-      const std::vector<std::string>& /*partitionByKeys*/,
-      const std::vector<SortingKeyAndOrder>& /*sortingKeysAndOrders*/,
-      const core::WindowNode::Function& /*function*/,
-      const std::string& /*frame*/,
-      const std::string& /*windowName*/) {
-    VELOX_NYI();
-  }
+      const std::string& aggregateName) override;
 
   /// Compares results of two logically equivalent Velox plans or a Velox plan
   /// and a reference DB query.
   ///
   /// 'initialize' must be called first. 'compare' may be called multiple times
   /// after single 'initialize' call.
-  virtual bool compare(
+  bool compare(
       const RowVectorPtr& result,
       const RowVectorPtr& otherResult) = 0;
 
@@ -86,12 +71,12 @@ class ScalarResultVerifier : public ResultVerifier {
   ///
   /// 'initialize' must be called first. 'verify' may be called multiple times
   /// after single 'initialize' call.
-  virtual bool verify(const RowVectorPtr& result) = 0;
+  bool verify(const RowVectorPtr& result) = 0;
 
   /// Clears internal state after possibly multiple calls to 'compare' and
   /// 'verify'. 'initialize' must be called again after 'reset' to allow calling
   /// 'compare' or 'verify' again.
-  virtual void reset() = 0;
+  void reset() = 0;
 };
 
 } // namespace facebook::velox::exec::test
