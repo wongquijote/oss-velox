@@ -39,6 +39,7 @@ velox_add_library(
   ExecutorBarrier.cpp
   FileSink.cpp
   FlatMapHelper.cpp
+  FlushPolicyFactory.cpp
   OnDemandUnitLoader.cpp
   InputStream.cpp
   IntDecoder.cpp
