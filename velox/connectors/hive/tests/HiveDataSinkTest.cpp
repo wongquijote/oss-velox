@@ -41,6 +41,8 @@
 #include "velox/exec/tests/utils/TempDirectoryPath.h"
 #include "velox/vector/fuzzer/VectorFuzzer.h"
 
+#include "velox/dwio/register/FlushPolicyFactory.h"
+
 namespace facebook::velox::connector::hive {
 namespace {
 
@@ -82,6 +84,10 @@ class HiveDataSinkTest : public exec::test::HiveConnectorTestBase {
     opPool_.reset();
     root_.reset();
     HiveConnectorTestBase::TearDown();
+#ifdef VELOX_ENABLE_PARQUET
+    parquet::unregisterParquetReaderFactory();
+    parquet::unregisterParquetWriterFactory();
+#endif
   }
 
   std::vector<RowVectorPtr> createVectors(int vectorSize, int numVectors) {
@@ -1147,7 +1153,11 @@ TEST_F(HiveDataSinkTest, insertTableHandleToString) {
 TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
   const auto outputDirectory = TempDirectoryPath::create();
   auto flushPolicyFactory = []() {
-    return std::make_unique<parquet::DefaultFlushPolicy>(1234, 0);
+    // return std::make_unique<parquet::DefaultFlushPolicy>(1234, 0);
+
+    // auto registered = dwio::common::registerParquetLambdaFlushPolicy("lambdaExample", 1'024 * 1'024, 128 * 1'024 * 1'024, []() { return false; });
+    // return dwio::common::getFlushPolicy(dwio::common::FileFormat::PARQUET, "lambdaExample");
+    return dwio::common::getFlushPolicy(dwio::common::FileFormat::PARQUET, "default");
   };
   auto writeOptions = std::make_shared<parquet::WriterOptions>();
   writeOptions->flushPolicyFactory = flushPolicyFactory;
@@ -1184,7 +1194,9 @@ TEST_F(HiveDataSinkTest, flushPolicyWithParquet) {
 TEST_F(HiveDataSinkTest, flushPolicyWithDWRF) {
   const auto outputDirectory = TempDirectoryPath::create();
   auto flushPolicyFactory = []() {
-    return std::make_unique<dwrf::DefaultFlushPolicy>(1234, 0);
+    // return std::make_unique<dwrf::DefaultFlushPolicy>(1234, 0);
+
+    return dwio::common::getFlushPolicy(dwio::common::FileFormat::DWRF, "default");
   };
 
   auto writeOptions = std::make_shared<dwrf::WriterOptions>();

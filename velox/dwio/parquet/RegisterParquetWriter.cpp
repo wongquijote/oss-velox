@@ -23,12 +23,14 @@ namespace facebook::velox::parquet {
 void registerParquetWriterFactory() {
 #ifdef VELOX_ENABLE_PARQUET
   dwio::common::registerWriterFactory(std::make_shared<ParquetWriterFactory>());
+  parquet::registerParquetFlushPolicyFactories();
 #endif
 }
 
 void unregisterParquetWriterFactory() {
 #ifdef VELOX_ENABLE_PARQUET
   dwio::common::unregisterWriterFactory(dwio::common::FileFormat::PARQUET);
+  parquet::unregisterParquetFlushPolicyFactories();
 #endif
 }
 

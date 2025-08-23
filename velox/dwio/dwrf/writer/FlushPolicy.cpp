@@ -15,12 +15,59 @@
  */
 
 #include "velox/dwio/dwrf/writer/FlushPolicy.h"
+#include "velox/dwio/common/Options.h"
+#include "velox/dwio/register/FlushPolicyFactory.h"
 
 namespace {
 static constexpr size_t kNumDictioanryTestsPerStripe = 3UL;
+
+static constexpr uint64_t kDefaultStripeSizeThreshold = 1234; // 64 * 1024 * 1024; // 64 MB
+static constexpr uint64_t kDefaultDictionarySizeThreshold = 0; // 16 * 1024 * 102; // 16 MB
+static const std::vector<uint64_t> kDefaultRowsPerStripe = {
+    1000000, 2000000, 3000000, 4000000, 5000000};
+static constexpr uint64_t kDefaultRowCountThreshold = 1000000; // 1 million rows
 } // namespace
 
 namespace facebook::velox::dwrf {
+
+void registerDwrfFlushPolicyFactories() {
+  dwio::common::registerFlushPolicy(
+    facebook::velox::dwio::common::FileFormat::DWRF,
+    "default",
+    std::make_unique<DefaultFlushPolicy>(
+        kDefaultStripeSizeThreshold,
+        kDefaultDictionarySizeThreshold
+    )
+  );
+  dwio::common::registerFlushPolicy(
+      facebook::velox::dwio::common::FileFormat::DWRF,
+      "rows_per_stripe",
+      std::make_unique<RowsPerStripeFlushPolicy>(
+        kDefaultRowsPerStripe
+      )
+  );
+  dwio::common::registerFlushPolicy(
+      facebook::velox::dwio::common::FileFormat::DWRF,
+      "rows_threshold",
+      std::make_unique<RowThresholdFlushPolicy>(
+        kDefaultRowCountThreshold
+      )
+  );
+  dwio::common::registerFlushPolicy(
+      facebook::velox::dwio::common::FileFormat::DWRF,
+      "lambda",
+      std::make_unique<LambdaFlushPolicy>(
+        []() -> bool {
+          return true; // Default lambda policy always returns true.
+        }
+      )
+  );
+}
+
+void unregisterDwrfFlushPolicyFactories() {
+  dwio::common::unregisterFlushPolicies(dwio::common::FileFormat::DWRF);
+}
+
 
 DefaultFlushPolicy::DefaultFlushPolicy(
     uint64_t stripeSizeThreshold,

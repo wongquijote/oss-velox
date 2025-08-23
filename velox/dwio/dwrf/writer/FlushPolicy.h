@@ -28,6 +28,10 @@ enum class FlushDecision {
   ABANDON_DICTIONARY,
 };
 
+void registerDwrfFlushPolicyFactories();
+
+void unregisterDwrfFlushPolicyFactories();
+
 class DWRFFlushPolicy : virtual public dwio::common::FlushPolicy {
  public:
   virtual ~DWRFFlushPolicy() override = default;

@@ -64,22 +64,23 @@ velox_add_library(
   Writer.cpp
   WriterFactory.cpp)
 
-velox_include_directories(velox_dwio_common PRIVATE ${Protobuf_INCLUDE_DIRS})
+velox_include_directories(velox_dwio_common PRIVATE ${Protobuf_INCLUDE_DIRS} ${PROJECT_BINARY_DIR})
 
 velox_link_libraries(
   velox_dwio_common
-  velox_buffer
-  velox_caching
-  velox_common_io
-  velox_common_compression
-  velox_common_config
-  velox_dwio_common_encryption
-  velox_dwio_common_exception
-  velox_exception
-  velox_expression
-  velox_memory
-  velox_type_tz
-  Boost::regex
-  Folly::folly
-  glog::glog
-  protobuf::libprotobuf)
+  PUBLIC velox_buffer
+  PUBLIC velox_caching
+  PUBLIC velox_common_io
+  PUBLIC velox_common_compression
+  PUBLIC velox_common_config
+  PUBLIC velox_dwio_common_encryption
+  PUBLIC velox_dwio_common_exception
+  PRIVATE velox_dwio_registered_flush_policies
+  PUBLIC velox_exception
+  PUBLIC velox_expression
+  PUBLIC velox_memory
+  PUBLIC velox_type_tz
+  PUBLIC Boost::regex
+  PUBLIC Folly::folly
+  PUBLIC glog::glog
+  PUBLIC protobuf::libprotobuf)

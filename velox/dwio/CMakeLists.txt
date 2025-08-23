@@ -34,5 +34,27 @@ add_subdirectory(common)
 add_subdirectory(catalog)
 add_subdirectory(dwrf)
 add_subdirectory(orc)
-add_subdirectory(parquet)
+# add_subdirectory(parquet)
 add_subdirectory(text)
+
+if(VELOX_ENABLE_PARQUET)
+  add_subdirectory(parquet)
+endif()
+
+# --- Readers impl: compiled after formats are available
+add_library(velox_dwio_registered_flush_policies_impl STATIC
+        register/FlushPolicyFactory.cpp
+)
+target_link_libraries(velox_dwio_registered_flush_policies_impl
+  PRIVATE
+    velox_dwio_dwrf_writer
+    velox_dwio_parquet_writer
+    $<$<BOOL:${VELOX_ENABLE_PARQUET}>:velox_dwio_parquet_writer>
+    velox_dwio_common
+)
+
+# Public bundle: consumers depend on this
+add_library(velox_dwio_registered_flush_policies INTERFACE)
+target_link_libraries(velox_dwio_registered_flush_policies
+  INTERFACE velox_dwio_registered_flush_policies_impl
+)

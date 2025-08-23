@@ -38,6 +38,10 @@ class ArrowDataBufferSink;
 
 struct ArrowContext;
 
+void registerParquetFlushPolicyFactories();
+
+void unregisterParquetFlushPolicyFactories();
+
 class DefaultFlushPolicy : public dwio::common::FlushPolicy {
  public:
   DefaultFlushPolicy()

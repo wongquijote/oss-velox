@@ -15,10 +15,11 @@
  */
 
 #pragma once
+#include <cstdint>
 
 namespace facebook::velox::dwio::common {
 
-struct StripeProgress {
+struct StripeProgress { 
   uint32_t stripeIndex{0};
   uint64_t stripeRowCount{0};
   int64_t totalMemoryUsage{0};
@@ -30,10 +31,15 @@ struct StripeProgress {
 // checks and customize how the decisions are combined.
 class FlushPolicy {
  public:
+  FlushPolicy() = default;
+  FlushPolicy(const FlushPolicy&) = delete;
+  FlushPolicy& operator=(const FlushPolicy&) = delete;
+  FlushPolicy(FlushPolicy&&) = default;
+  FlushPolicy& operator=(FlushPolicy&&) = default;
   virtual ~FlushPolicy() = default;
   virtual bool shouldFlush(const StripeProgress& stripeProgress) = 0;
   // The flush policy might need to trigger external side effects upon
-  // writer close. e.g. signaling to a coorditor of concurrent writers.
+  // writer close. e.g. signaling to a coordinator of concurrent writers.
   virtual void onClose() = 0;
 };
 

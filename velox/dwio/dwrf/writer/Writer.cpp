@@ -29,6 +29,7 @@
 #include "velox/dwio/dwrf/writer/FlushPolicy.h"
 #include "velox/dwio/dwrf/writer/LayoutPlanner.h"
 #include "velox/exec/MemoryReclaimer.h"
+#include "velox/dwio/dwrf/writer/FlushPolicy.h"
 
 using facebook::velox::common::testutil::TestValue;
 
@@ -964,10 +965,12 @@ void WriterOptions::processConfigs(
 
 void registerDwrfWriterFactory() {
   dwio::common::registerWriterFactory(std::make_shared<DwrfWriterFactory>());
+  dwrf::registerDwrfFlushPolicyFactories();
 }
 
 void unregisterDwrfWriterFactory() {
   dwio::common::unregisterWriterFactory(dwio::common::FileFormat::DWRF);
+  dwrf::unregisterDwrfFlushPolicyFactories();
 }
 
 } // namespace facebook::velox::dwrf

@@ -25,6 +25,8 @@
 #include "velox/dwio/parquet/writer/arrow/Properties.h"
 #include "velox/dwio/parquet/writer/arrow/Writer.h"
 #include "velox/exec/MemoryReclaimer.h"
+#include "velox/dwio/common/Options.h"
+#include "velox/dwio/register/FlushPolicyFactory.h"
 
 namespace facebook::velox::parquet {
 
@@ -32,6 +34,34 @@ using facebook::velox::parquet::arrow::ArrowWriterProperties;
 using facebook::velox::parquet::arrow::Compression;
 using facebook::velox::parquet::arrow::WriterProperties;
 using facebook::velox::parquet::arrow::arrow::FileWriter;
+
+namespace {
+  static constexpr int64_t kRowsInRowGroup = 1234; // 1'024 * 1'024; // 1M rows
+  static constexpr int64_t kBytesInRowGroup = 0; // 128 * 1'024 * 1'024; // 128MB
+}
+
+void registerParquetFlushPolicyFactories() {
+  dwio::common::registerFlushPolicy(
+      facebook::velox::dwio::common::FileFormat::PARQUET,
+      "default",
+      std::make_unique<DefaultFlushPolicy>(kRowsInRowGroup, kBytesInRowGroup)
+  );
+  dwio::common::registerFlushPolicy(
+      facebook::velox::dwio::common::FileFormat::PARQUET,
+      "lambda",
+      std::make_unique<LambdaFlushPolicy>(
+        kRowsInRowGroup,
+        kBytesInRowGroup,
+        []() -> bool {
+          return true; // Default lambda policy always returns true.
+        }
+      )
+  );
+}
+
+void unregisterParquetFlushPolicyFactories() {
+  dwio::common::unregisterFlushPolicies(dwio::common::FileFormat::PARQUET);
+}
 
 // Utility for buffering Arrow output with a DataBuffer.
 class ArrowDataBufferSink : public ::arrow::io::OutputStream {
