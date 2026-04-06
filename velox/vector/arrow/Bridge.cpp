@@ -16,6 +16,7 @@
 
 #include "velox/vector/arrow/Bridge.h"
 
+#include <glog/logging.h>
 #include "velox/buffer/Buffer.h"
 #include "velox/common/base/BitUtil.h"
 #include "velox/common/base/CheckedArithmetic.h"
@@ -708,23 +709,54 @@ void exportValidityBitmap(
     memory::MemoryPool* pool,
     VeloxToArrowBridgeHolder& holder) {
   if (!vec.nulls()) {
+    VLOG(2) << "exportValidityBitmap: no nulls buffer, "
+            << "type=" << vec.type()->toString()
+            << ", length=" << vec.size();
     out.null_count = 0;
     return;
   }
 
   auto nulls = vec.nulls();
+  bool rowsChanged = rows.changed();
 
   // If we're only exporting a subset, create a new validity buffer.
-  if (rows.changed()) {
+  if (rowsChanged) {
     nulls = AlignedBuffer::allocate<bool>(out.length, pool);
     gatherFromBuffer(*BOOLEAN(), *vec.nulls(), rows, options, *nulls);
   }
 
-  // Set null counts.
-  if (!rows.changed() && (vec.getNullCount() != std::nullopt)) {
-    out.null_count = *vec.getNullCount();
+  // Set null counts and detect mismatches
+  auto cachedNullCount = vec.getNullCount();
+  int64_t actualNullCount;
+  
+  if (!rowsChanged && cachedNullCount.has_value()) {
+    out.null_count = *cachedNullCount;
+    actualNullCount = BaseVector::countNulls(nulls, rows.count());
+    
+    // Log with mismatch detection
+    bool mismatch = (out.null_count != actualNullCount);
+    VLOG(2) << "exportValidityBitmap: "
+            << "type=" << vec.type()->toString()
+            << ", length=" << vec.size()
+            << ", rowCount=" << rows.count()
+            << ", rowsChanged=" << (rowsChanged ? "true" : "false")
+            << ", cachedNullCount=" << *cachedNullCount
+            << ", actualNullCount=" << actualNullCount
+            << ", MISMATCH=" << (mismatch ? "YES" : "NO");
   } else {
     out.null_count = BaseVector::countNulls(nulls, rows.count());
+    actualNullCount = out.null_count;
+    
+    VLOG(2) << "exportValidityBitmap: "
+            << "type=" << vec.type()->toString()
+            << ", length=" << vec.size()
+            << ", rowCount=" << rows.count()
+            << ", rowsChanged=" << (rowsChanged ? "true" : "false")
+            << ", cachedNullCount=" << (cachedNullCount.has_value()
+                                        ? std::to_string(*cachedNullCount)
+                                        : "nullopt")
+            << ", actualNullCount=" << actualNullCount
+            << ", MISMATCH=NO";
   }
 
   if (out.null_count > 0) {

@@ -200,6 +200,16 @@ class BaseVector {
   }
 
   void setNullCount(vector_size_t newNullCount) {
+    // Log explicit null count updates
+    VLOG(2) << "setNullCount called: "
+            << "type=" << (type_ ? type_->toString() : "null")
+            << ", encoding=" << VectorEncoding::mapSimpleToName(encoding_)
+            << ", length=" << length_
+            << ", oldNullCount=" << (nullCount_.has_value()
+                                     ? std::to_string(nullCount_.value())
+                                     : "nullopt")
+            << ", newNullCount=" << newNullCount;
+    
     nullCount_ = newNullCount;
   }
 
@@ -418,6 +428,18 @@ class BaseVector {
     if (!nulls_ && !isNull) {
       return;
     }
+    
+    // Log the null modification with previous cached state
+    VLOG(2) << "setNull called: "
+            << "type=" << (type_ ? type_->toString() : "null")
+            << ", encoding=" << VectorEncoding::mapSimpleToName(encoding_)
+            << ", length=" << length_
+            << ", index=" << idx
+            << ", isNull=" << (isNull ? "true" : "false")
+            << ", previousNullCount=" << (nullCount_.has_value()
+                                          ? std::to_string(nullCount_.value())
+                                          : "nullopt");
+    
     ensureNulls();
     bits::setNull(nulls_->asMutable<uint64_t>(), idx, isNull);
   }

@@ -15,6 +15,7 @@
  */
 
 #include "velox/vector/BaseVector.h"
+#include <glog/logging.h>
 #include <map>
 #include <vector>
 #include "velox/type/StringView.h"
@@ -176,6 +177,16 @@ BaseVector::BaseVector(
       representedByteCount_(representedByteCount),
       storageByteCount_(storageByteCount) {
   VELOX_CHECK_NOT_NULL(type_, "Vector creation requires a non-null type.");
+  
+  // Log vector creation with initial null count values
+  VLOG(2) << "BaseVector created: "
+          << "type=" << (type_ ? type_->toString() : "null")
+          << ", encoding=" << VectorEncoding::mapSimpleToName(encoding_)
+          << ", length=" << length_
+          << ", nullsBuffer=" << (nulls_ ? "present" : "absent")
+          << ", nullCount=" << (nullCount_.has_value()
+                                ? std::to_string(nullCount_.value())
+                                : "nullopt");
   VELOX_CHECK_LE(
       length,
       std::numeric_limits<vector_size_t>::max(),
@@ -613,6 +624,15 @@ void BaseVector::clearNulls(const SelectivityVector& nonNullRows) {
     return;
   }
 
+  // Log bulk null clearing operation
+  VLOG(2) << "clearNulls(SelectivityVector) called: "
+          << "type=" << (type_ ? type_->toString() : "null")
+          << ", length=" << length_
+          << ", range=[" << nonNullRows.begin() << ", " << nonNullRows.end() << ")"
+          << ", previousNullCount=" << (nullCount_.has_value()
+                                        ? std::to_string(nullCount_.value())
+                                        : "nullopt");
+
   if (nonNullRows.isAllSelected() && nonNullRows.end() == length_) {
     nulls_ = nullptr;
     rawNulls_ = nullptr;
@@ -635,6 +655,15 @@ void BaseVector::clearNulls(vector_size_t begin, vector_size_t end) {
     return;
   }
 
+  // Log bulk null clearing operation
+  VLOG(2) << "clearNulls(range) called: "
+          << "type=" << (type_ ? type_->toString() : "null")
+          << ", length=" << length_
+          << ", range=[" << begin << ", " << end << ")"
+          << ", previousNullCount=" << (nullCount_.has_value()
+                                        ? std::to_string(nullCount_.value())
+                                        : "nullopt");
+
   if (begin == 0 && end == length_) {
     nulls_ = nullptr;
     rawNulls_ = nullptr;
@@ -648,6 +677,15 @@ void BaseVector::clearNulls(vector_size_t begin, vector_size_t end) {
 }
 
 void BaseVector::setNulls(const BufferPtr& nulls) {
+  // Log nulls buffer replacement
+  VLOG(2) << "setNulls(BufferPtr) called: "
+          << "type=" << (type_ ? type_->toString() : "null")
+          << ", length=" << length_
+          << ", previousNullCount=" << (nullCount_.has_value()
+                                        ? std::to_string(nullCount_.value())
+                                        : "nullopt")
+          << ", operation=" << (nulls ? "setting buffer" : "clearing buffer");
+  
   if (nulls) {
     VELOX_DCHECK_GE(nulls->size(), bits::nbytes(length_));
     nulls_ = nulls;
