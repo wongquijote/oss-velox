@@ -442,6 +442,7 @@ class BaseVector {
     
     ensureNulls();
     bits::setNull(nulls_->asMutable<uint64_t>(), idx, isNull);
+    nullCount_ = std::nullopt;
   }
 
   struct CopyRange {

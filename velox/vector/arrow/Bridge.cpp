@@ -1144,6 +1144,17 @@ void flattenAndExport(
   auto flatVector = BaseVector::create<FlatVector<NativeType>>(
       vec.type(), decoded.size(), pool);
 
+  VLOG(2) << "flattenAndExport: "
+          << "originalEncoding=" << vec.encoding()
+          << ", type=" << vec.type()->toString()
+          << ", length=" << vec.size()
+          << ", originalCachedNullCount="
+          << (vec.getNullCount().has_value()
+                  ? std::to_string(*vec.getNullCount())
+                  : "nullopt")
+          << ", decodedMayHaveNulls="
+          << (decoded.mayHaveNulls() ? "true" : "false");
+
   if (decoded.mayHaveNulls()) {
     allRows.applyToSelected([&](vector_size_t row) {
       if (decoded.isNullAt(row)) {
@@ -1179,6 +1190,30 @@ void exportDictionary(
     holder.setBuffer(1, vec.wrapInfo());
   }
   auto& values = *vec.valueVector()->loadedVector();
+
+  // Log wrapper vs. inner values cache state for the raw DICTIONARY path.
+  // This path bypasses flatten and goes straight to exportToArrowImpl on the
+  // inner values — a stale cached nullCount on either the wrapper or the
+  // values vector could propagate to Arrow's null_count unchecked.
+  VLOG(2) << "exportDictionary: "
+          << "type=" << vec.type()->toString()
+          << ", wrapperLength=" << vec.size()
+          << ", wrapperCachedNullCount="
+          << (vec.getNullCount().has_value()
+                  ? std::to_string(*vec.getNullCount())
+                  : "nullopt")
+          << ", wrapperMayHaveNulls="
+          << (vec.mayHaveNulls() ? "true" : "false")
+          << ", valuesLength=" << values.size()
+          << ", valuesCachedNullCount="
+          << (values.getNullCount().has_value()
+                  ? std::to_string(*values.getNullCount())
+                  : "nullopt")
+          << ", valuesMayHaveNulls="
+          << (values.mayHaveNulls() ? "true" : "false")
+          << ", valuesEncoding="
+          << VectorEncoding::mapSimpleToName(values.encoding());
+
   out.dictionary = holder.allocateDictionary();
   exportToArrowImpl(
       values, Selection(values.size()), options, *out.dictionary, pool);
@@ -1204,6 +1239,22 @@ void exportConstantValue(
     const ArrowOptions& options,
     ArrowArray& out,
     memory::MemoryPool* pool) {
+  // Log the CONSTANT path. Note line below hard-codes null_count from
+  // mayHaveNulls() without calling countNulls — if the ConstantVector wraps
+  // a null scalar with stale cache state, this is where a wrong null_count
+  // literal gets baked into the exported Arrow array.
+  VLOG(2) << "exportConstantValue: "
+          << "type=" << vec.type()->toString()
+          << ", length=" << vec.size()
+          << ", cachedNullCount="
+          << (vec.getNullCount().has_value()
+                  ? std::to_string(*vec.getNullCount())
+                  : "nullopt")
+          << ", mayHaveNulls=" << (vec.mayHaveNulls() ? "true" : "false")
+          << ", isNullAt0="
+          << (vec.size() > 0 && vec.isNullAt(0) ? "true" : "false")
+          << ", literalNullCountChosen=" << (vec.mayHaveNulls() ? 1 : 0);
+
   VectorPtr valuesVector;
   Selection selection(1);
 
@@ -1290,6 +1341,27 @@ void exportToArrowImpl(
   out.length = rows.count();
   out.offset = 0;
   out.dictionary = nullptr;
+
+  // Log entry into exportToArrowImpl so we can see which encoding path the
+  // vector actually took — the existing exportValidityBitmap log only fires
+  // for the FLAT path (post-flatten), which self-heals via countNulls. The
+  // suspected bug paths (raw DICTIONARY / CONSTANT) never hit that log.
+  VLOG(2) << "exportToArrowImpl: "
+          << "encoding=" << VectorEncoding::mapSimpleToName(vec.encoding())
+          << ", type=" << vec.type()->toString()
+          << ", length=" << vec.size()
+          << ", rowsCount=" << rows.count()
+          << ", rowsChanged=" << (rows.changed() ? "true" : "false")
+          << ", cachedNullCount="
+          << (vec.getNullCount().has_value()
+                  ? std::to_string(*vec.getNullCount())
+                  : "nullopt")
+          << ", mayHaveNulls=" << (vec.mayHaveNulls() ? "true" : "false")
+          << ", flattenDictionary="
+          << (options.flattenDictionary ? "true" : "false")
+          << ", flattenConstant="
+          << (options.flattenConstant ? "true" : "false");
+
   exportValidityBitmap(vec, rows, options, out, pool, *holder);
 
   switch (vec.encoding()) {
