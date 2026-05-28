@@ -134,11 +134,20 @@ class SerDeOptions {
 };
 
 /// Parse options for the JSON reader (JSON Lines, matching Hive
-/// org.apache.hive.hcatalog.data.JsonSerDe). Intentionally empty for now: the
-/// reader has no lenient mode — every parse error throws, and leaf type
-/// mismatches coerce silently — so no toggle is needed yet. Date and timestamp
-/// format strings are added when temporal types land.
-struct JsonSerDeOptions {};
+/// org.apache.hive.hcatalog.data.JsonSerDe). The reader has no lenient mode —
+/// every parse error throws, and leaf type mismatches coerce silently — so no
+/// toggle is needed there. The temporal format strings below are Joda-style
+/// patterns (see velox/functions/lib/DateTimeFormatter.h); SimpleDateFormat
+/// parity is intentionally out of scope for v1.
+struct JsonSerDeOptions {
+  /// Joda-style pattern used to parse DATE columns from JSON string values.
+  std::string dateFormat{"yyyy-MM-dd"};
+
+  /// Joda-style pattern used to parse TIMESTAMP columns from JSON string
+  /// values. A trailing timezone token (e.g. ` ZZ`) is honored when present;
+  /// inputs without one are interpreted as UTC.
+  std::string timestampFormat{"yyyy-MM-dd HH:mm:ss"};
+};
 
 struct TableParameter {
   /// If present in the table parameters, the option is passed to the row reader
@@ -626,6 +635,13 @@ class ReaderOptions : public io::ReaderOptions {
     return *this;
   }
 
+  /// Modifies the JSON serialization-deserialization options (temporal
+  /// format strings). Only consulted by the JSON reader.
+  ReaderOptions& setJsonSerDeOptions(const JsonSerDeOptions& serdeOpts) {
+    jsonSerDeOptions_ = serdeOpts;
+    return *this;
+  }
+
   ReaderOptions& setDecrypterFactory(
       const std::shared_ptr<encryption::DecrypterFactory>& factory) {
     decrypterFactory_ = factory;
@@ -688,6 +704,10 @@ class ReaderOptions : public io::ReaderOptions {
 
   const SerDeOptions& serDeOptions() const {
     return serDeOptions_;
+  }
+
+  const JsonSerDeOptions& jsonSerDeOptions() const {
+    return jsonSerDeOptions_;
   }
 
   const std::shared_ptr<encryption::DecrypterFactory> decrypterFactory() const {
@@ -845,6 +865,7 @@ class ReaderOptions : public io::ReaderOptions {
   FileFormat fileFormat_{FileFormat::UNKNOWN};
   RowTypePtr fileSchema_;
   SerDeOptions serDeOptions_;
+  JsonSerDeOptions jsonSerDeOptions_;
   std::unordered_map<std::string, std::string> properties_{};
   std::shared_ptr<encryption::DecrypterFactory> decrypterFactory_;
   uint64_t footerSpeculativeIoSize_{kDefaultFooterSpeculativeIoSize};
